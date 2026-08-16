@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MyHealth - 個人多國語言隨身電子病歷 (自動同步翻譯版)</title>
+    <style>
+        :root {
+            --bg-color: #eaf3f9;
+            --card-bg: #ffffff;
+            --sub-card-bg: #f8fafc;
+            --primary: #2b70c9;
+            --primary-hover: #1d559e;
+            --success: #28a745;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --text-main: #334155;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius-lg: 20px;
+            --radius-md: 12px;
+            --shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 24px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .app-layout {
+            display: flex;
+            gap: 24px;
+            max-width: 1200px;
+            width: 100%;
+            align-items: flex-start;
+        }
+
+        /* 側邊欄 */
+        .sidebar {
+            width: 240px;
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 24px 16px;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 24px;
+            flex-shrink: 0;
+        }
+
+        .sidebar-menu {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .sidebar-menu a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px 16px;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-menu a::before {
+            content: "";
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #cbd5e1;
+            transition: all 0.2s ease;
+        }
+
+        .sidebar-menu a:hover, .sidebar-menu a.active {
+            color: var(--primary);
+            background-color: #f0f7ff;
+        }
+
+        .sidebar-menu a:hover::before, .sidebar-menu a.active::before {
+            background-color: var(--primary);
+        }
+
+        /* 右側主內容區 */
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        /* 工具列 */
+        .toolbar {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: -8px;
+        }
+
+        .btn {
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: none;
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+
+        .btn-edit { background-color: var(--primary); color: white; }
+        .btn-edit:hover { background-color: var(--primary-hover); }
+        .btn-save { background-color: var(--success); color: white; display: none; }
+
+        .btn-add {
+            background-color: var(--sub-card-bg);
+            color: var(--primary);
+            border: 1px dashed var(--primary);
+            width: 100%;
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: var(--radius-md);
+            display: none;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .btn-add:hover { background-color: #e0edff; }
+
+        .btn-delete {
+            background-color: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            display: none;
+        }
+
+        .lang-select {
+            padding: 8px 16px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background-color: var(--card-bg);
+            color: var(--primary);
+            font-weight: 600;
+            font-size: 0.9rem;
+            cursor: pointer;
+            outline: none;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        /* 卡片與欄位 */
+        .card {
+            background: var(--card-bg);
+            border-radius: var(--radius-lg);
+            padding: 28px;
+            box-shadow: var(--shadow);
+            scroll-margin-top: 24px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--bg-color);
+            padding-bottom: 12px;
+        }
+
+        .card-header .icon { font-size: 1.3rem; }
+        .card-header h2 { font-size: 1.25rem; color: var(--text-main); font-weight: 700; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .sub-card {
+            background-color: var(--sub-card-bg);
+            border-radius: var(--radius-md);
+            padding: 16px 20px;
+        }
+
+        .sub-card-label {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+            font-weight: 500;
+        }
+
+        .sub-card-value {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-main);
+        }
+
+        .alert-value { color: var(--danger); }
+        .full-width { grid-column: 1 / -1; }
+
+        /* 表格樣式 */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        .data-table th {
+            color: var(--text-muted);
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .data-table td {
+            padding: 12px 16px;
+            font-size: 0.95rem;
+            color: var(--text-main);
+            border-bottom: 1px solid #f1f5f9;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            outline: none;
+            background-color: white;
+        }
+
+        input[type="text"]:focus { border-color: var(--primary); }
+
+        @media (max-width: 868px) {
+            .app-layout { flex-direction: column; }
+            .sidebar { width: 100%; position: relative; top: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loading">
+    <div>🌐 正在自動同步翻譯至各國語言中...</div>
+</div>
+
+<div class="app-layout">
+    <!-- 左側側邊欄 -->
+    <nav class="sidebar">
+        <ul class="sidebar-menu">
+            <li><a href="#basic" id="menu-basic">基本資料</a></li>
+            <li><a href="#allergy" id="menu-allergy">過敏與警示</a></li>
+            <li><a href="#disease" id="menu-disease">疾病史</a></li>
+            <li><a href="#surgery" id="menu-surgery">手術 / 住院史</a></li>
+            <li><a href="#medication" id="menu-medication">用藥史</a></li>
+            <li><a href="#family" id="menu-family">家族史</a></li>
+            <li><a href="#lifestyle" id="menu-lifestyle">生活與社會史</a></li>
+            <li><a href="#vaccine" id="menu-vaccine">疫苗史</a></li>
+            <li><a href="#implants" id="menu-implants">植入物 / 輔具</a></li>
+            <li><a href="#emergency" id="menu-emergency">緊急聯絡</a></li>
+        </ul>
+    </nav>
+
+    <!-- 右側主要內容區 -->
+    <main class="main-content">
+        <!-- 工具列 -->
+        <div class="toolbar">
+            <button class="btn btn-edit" id="btnEdit" onclick="toggleEditMode(true)">✏️ 編輯資料</button>
+            <button class="btn btn-save" id="btnSave" onclick="saveAndTranslate()">💾 儲存並自動翻譯</button>
+
+            <select class="lang-select" id="langSelect" onchange="switchLanguage(this.value)">
+                <option value="zh">繁體中文 (Traditional Chinese)</option>
+                <option value="en">English</option>
+                <option value="ja">日本語 (Japanese)</option>
+                <option value="ko">한국어 (Korean)</option>
+                <option value="vi">Tiếng Việt (Vietnamese)</option>
+            </select>
+        </div>
+
+        <!-- 1. 基本資料 -->
+        <section class="card" id="basic">
+            <div class="card-header"><span class="icon">👤</span><h2 id="title-basic">基本資料</h2></div>
+            <div class="info-grid">
+                <div class="sub-card"><div class="sub-card-label" id="lbl-name">姓名</div><div class="sub-card-value" id="val-name"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-dob">出生日期</div><div class="sub-card-value" id="val-dob"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-gender">性別</div><div class="sub-card-value" id="val-gender"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-blood">血型</div><div class="sub-card-value" id="val-blood"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-organ">器官捐贈意願</div><div class="sub-card-value" id="val-organ"></div></div>
+            </div>
+        </section>
+
+        <!-- 2. 過敏與警示 -->
+        <section class="card" id="allergy">
+            <div class="card-header"><span class="icon">⚠️</span><h2 id="title-allergy">過敏與警示</h2></div>
+            <div class="info-grid">
+                <div class="sub-card"><div class="sub-card-label" id="lbl-drug-allergy">藥物過敏</div><div class="sub-card-value alert-value" id="val-drug-allergy"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-food-allergy">食物 / 其他過敏</div><div class="sub-card-value" id="val-food-allergy"></div></div>
+                <div class="sub-card full-width"><div class="sub-card-label" id="lbl-allergy-note">特殊注意事項</div><div class="sub-card-value" id="val-allergy-note"></div></div>
+            </div>
+        </section>
+
+        <!-- 3. 疾病史 -->
+        <section class="card" id="disease">
+            <div class="card-header"><span class="icon">🩺</span><h2 id="title-disease">疾病史</h2></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>疾病名稱</th>
+                        <th>診斷年份</th>
+                        <th>目前狀態</th>
+                        <th class="action-col" style="display:none;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="diseaseBody"></tbody>
+            </table>
+            <button class="btn btn-add" onclick="addTableRow('disease')">＋ 新增疾病紀錄</button>
+        </section>
+
+        <!-- 4. 手術 / 住院史 -->
+        <section class="card" id="surgery">
+            <div class="card-header"><span class="icon">🏥</span><h2 id="title-surgery">手術 / 住院史</h2></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>手術 / 住院原因</th>
+                        <th>年份 / 年月</th>
+                        <th>醫院名稱</th>
+                        <th class="action-col" style="display:none;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="surgBody"></tbody>
+            </table>
+            <button class="btn btn-add" onclick="addTableRow('surgery')">＋ 新增手術紀錄</button>
+        </section>
+
+        <!-- 5. 用藥史 -->
+        <section class="card" id="medication">
+            <div class="card-header"><span class="icon">💊</span><h2 id="title-medication">目前用藥與過去用藥</h2></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>藥名</th>
+                        <th>劑量</th>
+                        <th>頻率</th>
+                        <th>用途</th>
+                        <th class="action-col" style="display:none;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="medBody"></tbody>
+            </table>
+            <button class="btn btn-add" onclick="addTableRow('medication')">＋ 新增藥物</button>
+        </section>
+
+        <!-- 6. 家族史 -->
+        <section class="card" id="family">
+            <div class="card-header"><span class="icon">🧬</span><h2 id="title-family">家族疾病史</h2></div>
+            <div class="info-grid">
+                <div class="sub-card"><div class="sub-card-label" id="lbl-paternal">父系</div><div class="sub-card-value" id="val-paternal"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-maternal">母系</div><div class="sub-card-value" id="val-maternal"></div></div>
+                <div class="sub-card full-width"><div class="sub-card-label" id="lbl-other-family">其他重要家族史</div><div class="sub-card-value" id="val-other-family"></div></div>
+            </div>
+        </section>
+
+        <!-- 7. 生活與社會史 -->
+        <section class="card" id="lifestyle">
+            <div class="card-header"><span class="icon">🍷</span><h2 id="title-lifestyle">生活與社會史</h2></div>
+            <div class="info-grid">
+                <div class="sub-card"><div class="sub-card-label" id="lbl-smoking">吸菸史</div><div class="sub-card-value" id="val-smoking"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-alcohol">飲酒史</div><div class="sub-card-value" id="val-alcohol"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-diet">飲食習慣</div><div class="sub-card-value" id="val-diet"></div></div>
+            </div>
+        </section>
+
+        <!-- 8. 疫苗史 -->
+        <section class="card" id="vaccine">
+            <div class="card-header"><span class="icon">💉</span><h2 id="title-vaccine">疫苗接種史</h2></div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>疫苗名稱</th>
+                        <th>劑次</th>
+                        <th>最新接種日期</th>
+                        <th class="action-col" style="display:none;">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="vacBody"></tbody>
+            </table>
+            <button class="btn btn-add" onclick="addTableRow('vaccine')">＋ 新增疫苗紀錄</button>
+        </section>
+
+        <!-- 9. 植入物 / 輔具 -->
+        <section class="card" id="implants">
+            <div class="card-header"><span class="icon">🦾</span><h2 id="title-implants">植入物 / 輔具</h2></div>
+            <div class="info-grid">
+                <div class="sub-card"><div class="sub-card-label" id="lbl-implant-item">體內植入物</div><div class="sub-card-value" id="val-implant-item"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-device-item">日常輔具</div><div class="sub-card-value" id="val-device-item"></div></div>
+            </div>
+        </section>
+
+        <!-- 10. 緊急聯絡 -->
+        <section class="card" id="emergency">
+            <div class="card-header"><span class="icon">📞</span><h2 id="title-emergency">緊急聯絡</h2></div>
+            <div class="info-grid">
+                <div class="sub-card"><div class="sub-card-label" id="lbl-ice-name">聯絡人姓名</div><div class="sub-card-value" id="val-ice-name"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-ice-rel">關係</div><div class="sub-card-value" id="val-ice-rel"></div></div>
+                <div class="sub-card"><div class="sub-card-label" id="lbl-ice-phone">電話</div><div class="sub-card-value" id="val-ice-phone"></div></div>
+            </div>
+        </section>
+    </main>
+</div>
+
+<script>
+    // 支援的語言清單
+    const targetLangs = ['zh', 'en', 'ja', 'ko', 'vi'];
+    let currentLang = 'zh';
+    let isEditing = false;
+
+    // 多國語言存儲庫 (結構: healthStore[lang].basic ...)
+    let healthStore = {
+        zh: {
+            basic: { name: "王小明 (Ming Wang)", dob: "1988-05-20", gender: "男", blood: "O 型 (Rh+)", organ: "是" },
+            allergy: { drug: "Penicillin (盤尼西林)", food: "花生、海鮮", note: "對含碘對比劑輕微過敏，施打前需評估" },
+            family: { paternal: "高血壓", maternal: "第二型糖尿病", other: "無已知遺傳性癌症" },
+            lifestyle: { smoking: "無", alcohol: "偶爾社交飲酒", diet: "低鹽飲食" },
+            implants: { implant: "無金屬心臟支架或血管支架", device: "近視眼鏡 (-3.50D)" },
+            emergency: { name: "陳美玲", rel: "配偶", phone: "+886 912-345-678" },
+            disease: [
+                { name: "高血壓", date: "2020", status: "穩定控制中" },
+                { name: "第二型糖尿病", date: "2021", status: "藥物控制中" }
+            ],
+            surgery: [
+                { name: "闌尾切除術", date: "2018", hospital: "臺北醫學大學附設醫院" }
+            ],
+            medication: [
+                { drug: "Ankomin 美克糖錠", dosage: "500 mg × 2 粒", freq: "每日 2 次，早晚飯後", usage: "第二型糖尿病" },
+                { drug: "Diovan 得安穩", dosage: "160 mg × 0.5 粒", freq: "每日 1 次", usage: "血壓控制" }
+            ],
+            vaccine: [
+                { name: "COVID-19 mRNA Vaccine", doses: "4 劑", date: "2022-11" },
+                { name: "流感疫苗", doses: "每年 1 劑", date: "2023-10" }
+            ]
+        }
+    };
+
+    // 初始化其他語言的空結構
+    targetLangs.forEach(lang => {
+        if (lang !== 'zh') {
+            healthStore[lang] = JSON.parse(JSON.stringify(healthStore.zh));
+        }
+    });
+
+    // 免費 Google 翻譯 API 工具
+    async function translateText(text, targetLang, srcLang = 'auto') {
+        if (!text || text.trim() === '' || !isNaN(text)) return text;
+        try {
+            const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${srcLang}&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+            const res = await fetch(url);
+            const data = await res.json();
+            return data[0].map(item => item[0]).join('');
+        } catch (e) {
+            console.error('Translation error:', e);
+            return text;
+        }
+    }
+
+    // 將物件與陣列遞迴翻譯
+    async function translateObject(obj, targetLang, srcLang) {
+        if (typeof obj === 'string') {
+            return await translateText(obj, targetLang, srcLang);
+        } else if (Array.isArray(obj)) {
+            let arr = [];
+            for (let item of obj) {
+                arr.push(await translateObject(item, targetLang, srcLang));
+            }
+            return arr;
+        } else if (typeof obj === 'object' && obj !== null) {
+            let newObj = {};
+            for (let key in obj) {
+                newObj[key] = await translateObject(obj[key], targetLang, srcLang);
+            }
+            return newObj;
+        }
+        return obj;
+    }
+
+    // 按下「儲存並自動翻譯」
+    async function saveAndTranslate() {
+        // 1. 抓取表單修改過的數值
+        readInputsFromDOM();
+
+        // 2. 開啟 Loading 畫面
+        document.getElementById('loading').style.display = 'flex';
+
+        // 3. 自動翻譯至所有其他語言
+        const srcData = healthStore[currentLang];
+        for (let lang of targetLangs) {
+            if (lang !== currentLang) {
+                // 將 Google Translate 的 zh-TW 對應修正
+                let apiLang = lang;
+                if (lang === 'zh') apiLang = 'zh-TW';
+                
+                healthStore[lang] = await translateObject(srcData, apiLang, currentLang);
+            }
+        }
+
+        // 4. 關閉 Loading 並退出編輯模式
+        document.getElementById('loading').style.display = 'none';
+        toggleEditMode(false);
+    }
+
+    // 從畫面表單讀取值更新至 healthStore
+    function readInputsFromDOM() {
+        const cur = healthStore[currentLang];
+        
+        cur.basic.name = getVal('val-name');
+        cur.basic.dob = getVal('val-dob');
+        cur.basic.gender = getVal('val-gender');
+        cur.basic.blood = getVal('val-blood');
+        cur.basic.organ = getVal('val-organ');
+
+        cur.allergy.drug = getVal('val-drug-allergy');
+        cur.allergy.food = getVal('val-food-allergy');
+        cur.allergy.note = getVal('val-allergy-note');
+
+        cur.family.paternal = getVal('val-paternal');
+        cur.family.maternal = getVal('val-maternal');
+        cur.family.other = getVal('val-other-family');
+
+        cur.lifestyle.smoking = getVal('val-smoking');
+        cur.lifestyle.alcohol = getVal('val-alcohol');
+        cur.lifestyle.diet = getVal('val-diet');
+
+        cur.implants.implant = getVal('val-implant-item');
+        cur.implants.device = getVal('val-device-item');
+
+        cur.emergency.name = getVal('val-ice-name');
+        cur.emergency.rel = getVal('val-ice-rel');
+        cur.emergency.phone = getVal('val-ice-phone');
+
+        // 讀取表格資料
+        cur.disease = readTableData('diseaseBody', ['name', 'date', 'status']);
+        cur.surgery = readTableData('surgBody', ['name', 'date', 'hospital']);
+        cur.medication = readTableData('medBody', ['drug', 'dosage', 'freq', 'usage']);
+        cur.vaccine = readTableData('vacBody', ['name', 'doses', 'date']);
+    }
+
+    function getVal(id) {
+        const el = document.getElementById(id);
+        const input = el.querySelector('input');
+        return input ? input.value : el.textContent;
+    }
+
+    function readTableData(tbodyId, keys) {
+        const trs = document.querySelectorAll(`#${tbodyId} tr`);
+        let list = [];
+        trs.forEach(tr => {
+            let rowObj = {};
+            const inputs = tr.querySelectorAll('input');
+            keys.forEach((k, i) => {
+                rowObj[k] = inputs[i] ? inputs[i].value : (tr.cells[i] ? tr.cells[i].textContent : '');
+            });
+            list.push(rowObj);
+        });
+        return list;
+    }
+
+    // 切換當前檢視語言
+    function switchLanguage(lang) {
+        if (isEditing) {
+            readInputsFromDOM(); // 如果正在編輯中切換，先暫存
+        }
+        currentLang = lang;
+        renderPage();
+    }
+
+    // 畫面渲染
+    function renderPage() {
+        const cur = healthStore[currentLang];
+
+        const setField = (id, val) => {
+            const el = document.getElementById(id);
+            if (isEditing) {
+                el.innerHTML = `<input type="text" value="${val || ''}">`;
+            } else {
+                el.textContent = val || '';
+            }
+        };
+
+        setField('val-name', cur.basic.name);
+        setField('val-dob', cur.basic.dob);
+        setField('val-gender', cur.basic.gender);
+        setField('val-blood', cur.basic.blood);
+        setField('val-organ', cur.basic.organ);
+
+        setField('val-drug-allergy', cur.allergy.drug);
+        setField('val-food-allergy', cur.allergy.food);
+        setField('val-allergy-note', cur.allergy.note);
+
+        setField('val-paternal', cur.family.paternal);
+        setField('val-maternal', cur.family.maternal);
+        setField('val-other-family', cur.family.other);
+
+        setField('val-smoking', cur.lifestyle.smoking);
+        setField('val-alcohol', cur.lifestyle.alcohol);
+        setField('val-diet', cur.lifestyle.diet);
+
+        setField('val-implant-item', cur.implants.implant);
+        setField('val-device-item', cur.implants.device);
+
+        setField('val-ice-name', cur.emergency.name);
+        setField('val-ice-rel', cur.emergency.rel);
+        setField('val-ice-phone', cur.emergency.phone);
+
+        renderTable('diseaseBody', cur.disease, ['name', 'date', 'status']);
+        renderTable('surgBody', cur.surgery, ['name', 'date', 'hospital']);
+        renderTable('medBody', cur.medication, ['drug', 'dosage', 'freq', 'usage']);
+        renderTable('vacBody', cur.vaccine, ['name', 'doses', 'date']);
+
+        document.querySelectorAll('.action-col').forEach(el => el.style.display = isEditing ? 'table-cell' : 'none');
+    }
+
+    function renderTable(tbodyId, list, keys) {
+        const tbody = document.getElementById(tbodyId);
+        tbody.innerHTML = '';
+        (list || []).forEach((item, idx) => {
+            const tr = document.createElement('tr');
+            let content = '';
+            keys.forEach(k => {
+                if (isEditing) {
+                    content += `<td><input type="text" value="${item[k] || ''}"></td>`;
+                } else {
+                    content += `<td>${item[k] || ''}</td>`;
+                }
+            });
+            if (isEditing) {
+                content += `<td class="action-col"><button class="btn-delete" style="display:inline-block" onclick="deleteRow('${tbodyId}', ${idx})">刪除</button></td>`;
+            }
+            tr.innerHTML = content;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function toggleEditMode(edit) {
+        isEditing = edit;
+        document.getElementById('btnEdit').style.display = edit ? 'none' : 'inline-block';
+        document.getElementById('btnSave').style.display = edit ? 'inline-block' : 'none';
+        document.querySelectorAll('.btn-add').forEach(el => el.style.display = edit ? 'block' : 'none');
+        renderPage();
+    }
+
+    function addTableRow(type) {
+        const cur = healthStore[currentLang];
+        readInputsFromDOM(); // 先存DOM值
+        if (type === 'disease') cur.disease.push({ name: '', date: '', status: '' });
+        if (type === 'surgery') cur.surgery.push({ name: '', date: '', hospital: '' });
+        if (type === 'medication') cur.medication.push({ drug: '', dosage: '', freq: '', usage: '' });
+        if (type === 'vaccine') cur.vaccine.push({ name: '', doses: '', date: '' });
+        renderPage();
+    }
+
+    function deleteRow(tbodyId, index) {
+        const cur = healthStore[currentLang];
+        readInputsFromDOM();
+        if (tbodyId === 'diseaseBody') cur.disease.splice(index, 1);
+        if (tbodyId === 'surgBody') cur.surgery.splice(index, 1);
+        if (tbodyId === 'medBody') cur.medication.splice(index, 1);
+        if (tbodyId === 'vacBody') cur.vaccine.splice(index, 1);
+        renderPage();
+    }
+
+    // 初始化
+    renderPage();
+</script>
+
+</body>
+</html>
